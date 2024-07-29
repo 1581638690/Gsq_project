@@ -3,7 +3,7 @@ from datetime import timedelta
 import datetime
 
 
-def session_action_relation(sessionid, interface_url, action_dict, o, url_type,url_list, move_interface=None):
+def session_action_relation(sessionid, interface_url, action_dict, o, url_type, url_list, move_interface=None):
     current_time = datetime.datetime.now()
 
     # 清理超过24小时的sessionid
@@ -31,6 +31,7 @@ def session_action_relation(sessionid, interface_url, action_dict, o, url_type,u
                     founds = remove_one_search(o)
                 elif move_interface.get("YjxxList") and move_interface.get("YjxxList", "") == url:
                     founds = remove_par_judge(o)
+
         else:
             # 该用户存在获取user_actions
             user_actions = action_dict[sessionid]
@@ -65,10 +66,9 @@ def session_action_relation(sessionid, interface_url, action_dict, o, url_type,u
                     if isinstance(current_request_body, dict):
                         current_table_name = current_request_body.get("tableName", "")
 
-
                     # 跟历史记录进行对比，若出现重复的表名则更新改信息
                     for idx, d_url in enumerate(url_lst):
-                        history_url = d_url.get("url","")
+                        history_url = d_url.get("url", "")
                         # 获取历史记录请求体，获取历史表名
                         history_request_body = d_url.get("request_body", "")
                         try:
@@ -82,7 +82,8 @@ def session_action_relation(sessionid, interface_url, action_dict, o, url_type,u
                                 founds = False
                                 update_action = True
                                 break
-                            elif history_url == url and url !="" and any(u in url for u in url_list): # 判断接口相同，且接口存在自制的url_list中，才进入判断
+                            elif history_url == url and url != "" and any(
+                                    u in url for u in url_list):  # 判断接口相同，且接口存在自制的url_list中，才进入判断
                                 if current_request_body != history_request_body:
                                     url_lst[idx] = o
                                     founds = False
@@ -159,7 +160,7 @@ def retrieve_forward(action_dict, o, session_id, interface_url):
         current_subModel = request_body.get("subModel", "")  # 当前模块子模块标签名称
         current_eventId = request_body.get("eventId", "")
         current_serNumber = request_body.get("serNumber", "")
-        current_apiName= request_body.get("api","")
+        current_apiName = request_body.get("api", "")
         # 首先判断点击的是不是一级模块标签  不是子模块的条件 序号为-1 事件ID为空，这个就是人口跟企业的详情一级模块
         if not current_eventId and current_serNumber == -1 and current_modelName != "基本信息":
             # 子模块跟事件ID必须有一个存在,若不存在，则是一级模块标签，直接输出操作行为
@@ -176,7 +177,7 @@ def retrieve_forward(action_dict, o, session_id, interface_url):
 
                     # 循环接口数据信息
                     for dd in face_data:
-                        fetch_url = dd.get("url","")
+                        fetch_url = dd.get("url", "")
                         subName = dd.get("subName", "")
                         # 获取请求体
                         fetch_request_body = dd.get("request_body", "")
@@ -209,10 +210,12 @@ def retrieve_forward(action_dict, o, session_id, interface_url):
 
                         # 形成子条件规则
                         condition1 = (fetch_table == current_table and current_table)
-                        condition2 = (((current_apiName in fetch_url) or (fetch_url in current_apiName)) and current_apiName)
+                        condition2 = (((current_apiName in fetch_url) or (
+                                fetch_url in current_apiName)) and current_apiName)
                         condition3 = (current_subModel == subName and current_subModel)
                         event_conditon = (current_eventId == event_id and current_eventId)
-                        jiben_con = (current_modelName == "基本信息" and current_serNumber == -1 and current_subModel == "")
+                        jiben_con = (
+                                current_modelName == "基本信息" and current_serNumber == -1 and current_subModel == "")
 
                         # 第一种情况，表名相同或者 事件ID相同，且存在子模块，且序号不为-1 这就是子模块点击序号操作
                         if event_conditon and current_serNumber == -1:
@@ -229,7 +232,8 @@ def retrieve_forward(action_dict, o, session_id, interface_url):
                                     o["res"] = fetch_data[0]
                                 founds_url = True
                                 break
-                        elif ((condition1 or condition2) or condition3) and current_subModel and current_serNumber != -1:
+                        elif ((
+                                      condition1 or condition2) or condition3) and current_subModel and current_serNumber != -1:
                             # 如果两个相等就将当前o的响应体等于表中信息
 
                             # 获取当前序号的结果信息
@@ -262,6 +266,49 @@ def oper_res(parameters, dd, current_dic):
     return current_dic
 
 
+def company_basic_info(url, event_dic, basic_dic, url_type):
+    """
+    处理接口数据，更新基本信息字典.
+
+    :param url: 接口 URL
+    :param event_dic: 包含请求体、响应体和其他相关信息的字典
+    :param basic_dic: 存储基本信息的字典
+    :return: 更新后的基本信息字典
+    """
+    m_found = False
+    parameter = event_dic.get("parameter", "")
+    request_body = event_dic.get("request_body", "")
+
+    main_url = "/hsdsh/es/searchForHitList"
+    if url_type != "详情":
+        return {}, True
+    # 处理主接口 /hsdsh/es/searchForHitList
+    if url == main_url:
+        if main_url not in basic_dic and "企业" in parameter:
+            # 记录请求信息，但不返回实际数据
+            basic_dic[main_url] = event_dic
+            return {}, m_found
+        else:
+
+            # 返回空字典，表示还没有完整的数据
+            return {}, True
+
+    # 处理详情接口 /hsdsh/peopleEnterprise/selectListForPg
+    if url == "/hsdsh/peopleEnterprise/selectListForPg":
+        table_name = request_body.get("tableName", "")
+
+        if main_url in basic_dic and table_name == "gj_qxb_qyjbxxb":
+            # 获取基本信息的 res
+            jbxx_res = event_dic.get("res")
+            # 更新 basic_dic 中 main_url 对应的项
+            basic_dic[main_url]["res"] = jbxx_res
+            # basic_dic[main_url]["url"] = main_url
+            m_found = True
+            return basic_dic[main_url], m_found
+
+    return {}, True
+
+
 """
 1.标注接口为详情接口，并对接口中信息进行标注
 2.根据标注信息，生成详情接口的详情数据，获取到 event，ret_res, response_body,request_body,url,time,cookie,user_info,account,action,status_msg
@@ -271,7 +318,11 @@ def oper_res(parameters, dd, current_dic):
 """
 
 if __name__ == '__main__':
-    url_list = ["/hsdsh/peopleEnterprise/getEnterpriseBidding","/hsdsh/peopleEnterprise/getPersonMaritalStatus","/hsdsh/peopleEnterprise/getPersonEducationData","/hsdsh/peopleEnterprise/getPersonMarriageInfo","/hsdsh/peopleEnterprise/getPersonSocialInfo","/hsdsh/peopleEnterprise/getPersonAccumulationFund","/hsdsh/peopleEnterprise/getPersonVehicleTrafficRecords","/hsdsh/peopleEnterprise/getAccessControlRecords"]
+    url_list = ["/hsdsh/peopleEnterprise/getEnterpriseBidding", "/hsdsh/peopleEnterprise/getPersonMaritalStatus",
+                "/hsdsh/peopleEnterprise/getPersonEducationData", "/hsdsh/peopleEnterprise/getPersonMarriageInfo",
+                "/hsdsh/peopleEnterprise/getPersonSocialInfo", "/hsdsh/peopleEnterprise/getPersonAccumulationFund",
+                "/hsdsh/peopleEnterprise/getPersonVehicleTrafficRecords",
+                "/hsdsh/peopleEnterprise/getAccessControlRecords"]
     action_dict = {'c7318a9eaa425684db4052edca008c1b': {'searchForHitList': [
         {'url': 'searchForHitList', '接口事件': '详情', 'sessionid': 'c7318a9eaa425684db4052edca008c1b'},
         {"url": "selectListForPg", "接口事件": "详情", "sessionid": "c7318a9eaa425684db4052edca008c1b",
@@ -280,7 +331,8 @@ if __name__ == '__main__':
         {"url": "selectListForPg", "接口事件": "详情", "sessionid": "c7318a9eaa425684db4052edca008c1b",
          "request_body": '{"tableName":"gj_qxb_qyjbxxb","codition":{"eid":""},"page":2,"limit":10}',
          "response_body": '{"code":"请求成功！","data":[{"tiel":1},{"title":2},{}]}'},
-        {"url": "http://10.18.95.82.8000/hsdsh/peopleEnterprise/getEnterpriseBidding", "接口事件": "详情", "sessionid": "c7318a9eaa425684db4052edca008c1b",
+        {"url": "http://10.18.95.82.8000/hsdsh/peopleEnterprise/getEnterpriseBidding", "接口事件": "详情",
+         "sessionid": "c7318a9eaa425684db4052edca008c1b",
          "request_body": '{"codition":{"eid":""},"page":1,"limit":10}',
          "response_body": '{"code":"0000","data":[{"tiel":2},{"title":2},{}]}'}
     ],
@@ -301,18 +353,20 @@ if __name__ == '__main__':
 
     ]
     o_list1 = [
-        {"url": "http://10.18.95.82.8000/hsdsh/peopleEnterprise/getEnterpriseBidding", "接口事件": "详情", "sessionid": "c7318a9eaa425684db4052edca008c1b",
+        {"url": "http://10.18.95.82.8000/hsdsh/peopleEnterprise/getEnterpriseBidding", "接口事件": "详情",
+         "sessionid": "c7318a9eaa425684db4052edca008c1b",
          "request_body": '{"codition":{"eid":""},"page":2,"limit":10}',
          "response_body": '{"code":"0000","data":[{"tiel":3},{"title":4},{}]}'}
     ]
-    for o in o_list1:
+    for o in company_list:
         sessionid = o.get("sessionid")
         interface_url = "searchForHitList"
         move_interface = {"search": "search", "YjxxList": "YjxxList"}
         url_type = o.get("接口事件")
 
-        action_dict, found = session_action_relation(sessionid, interface_url, action_dict, o, url_type,url_list,move_interface)
-    print(action_dict)
+        action_dict, found = session_action_relation(sessionid, interface_url, action_dict, o, url_type, url_list,
+                                                     move_interface)
+
     action_olst = [
         {
             "url": "http://10.18.95.82:8000/hsdsh/public/api/flowMonitoring",
@@ -340,4 +394,51 @@ if __name__ == '__main__':
         interface_url = 'searchForHitList'
         o, found_url = retrieve_forward(action_dict, action_o, session_id, interface_url)
 
-        print(o)
+    basic_dict = {}
+    oo_list = [
+        {"url": "/hsdsh/es/searchList", "url_type": "详情",
+         "parameter": "keyword=徐君&analyzer=false",
+         "res": {"事件部门名称": {}}, "founds": True,
+         "request_body": {"tableName": "gj_qxb_qyjbxxb", "condition": {"eid": ""}, "page": 1, "limit": 10},
+         "response_body": {"code": "0000", "msg": "请求成功", "data": [
+             {"actual_capi": "210", "oper_name": "王鑫杰", "format_name": "杭州三富金属材料有限公司",
+              "credit_no": "913301055660514050"}]}
+         },
+        {"url": "/hsdsh/es/searchForHitList", "founds": True, "url_type": "详情",
+         "parameter": "index=enterprise_collect_last&id=gsq_data_qydxzcxx_abc&keyword=王鑫&analy=false&topic=企业&tableName=gsq_data_sjcj_qydxzcxx",
+         "res": {"公司名称": ["aaaaaaaa"]}, "request_body": "", "response_body": {"code": "0000", "msg": "请求成功"}},
+        {"url": "/hsdsh/peopleEnterprise/selectListForPg",
+         "parameter": "", "url_type": "详情", "founds": False,
+         "res": {}, "request_body": {"tableName": "gj_qxb_zyrygsgsb", "condition": {"eid": ""}, "page": 1, "limit": 10},
+         "response_body": {"code": "0000", "msg": "请求成功", "data": [
+             {"name": "王峰萍",
+              "credit_no": "913301055660514050"}, {"name": "王鑫杰",
+                                                   "credit_no": "913301055660514050"}]}
+         },
+        {"url": "/hsdsh/peopleEnterprise/selectListForPg", "url_type": "详情",
+         "parameter": "", "founds": False,
+         "res": {"公司名称": ["杭州三富金属材料有限公司"], "社会统一标识": ["913301055660514050"]},
+         "request_body": {"tableName": "gj_qxb_qyjbxxb", "condition": {"eid": ""}, "page": 1, "limit": 10},
+         "response_body": {"code": "0000", "msg": "请求成功", "data": [
+             {"actual_capi": "210", "oper_name": "王鑫杰", "format_name": "杭州三富金属材料有限公司",
+              "credit_no": "913301055660514050"}]}
+         },
+        {"url": "/hsdsh/es/searchForHitList", "url_type": "详情", "founds": True,
+         "parameter": "index=enterprise_collect_last&id=gsq_data_qydxzcxx_abc&keyword=王鑫&analy=false&topic=人口&tableName=gsq_data_sjcj_qydxzcxx",
+         "res": {"公司名称": ["aaaaaaaa"]}, "request_body": "", "response_body": {"code": "0000", "msg": "请求成功"}},
+
+    ]
+    for oo in oo_list:
+        url = oo.get("url")
+        url_type = oo.get("url_type")
+        founds = oo.get("founds")
+        res, m_found = company_basic_info(url, oo, basic_dict,
+                                          url_type)  # 三种结果 {} True是详情但是不符合条件,{} False是主接口，且第一次访问,{dadad},True是基本信息接口，也获取到了具体信息，返回查看详情接口信息
+        if res and m_found:  # {dadad},True
+            basic_dict = {}  # 将字典置为空，且当前日志 == res
+
+            oo = res
+            founds = True
+
+        if founds and m_found:
+            print(oo)
