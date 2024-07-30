@@ -3,6 +3,7 @@
 import shutil
 import sys
 import configparser
+import requests
 
 # 读取配置文件
 path_config = configparser.ConfigParser()
@@ -12,12 +13,21 @@ path_config.read('/opt/openfbi/pylibs/config.ini')
 xlink_base_path = path_config['paths']['xlink_base_path']
 
 sys.path.append("lib")
-
-from bottle import request, Bottle, abort, route, response
+from bottle import request, route, response,  redirect as redirect1
 import json
-import time
 import zipfile
-import ujson
+from avenger.fsys import *
+from avenger.fssdb import *
+from avenger.fastbi import compile_fbi
+from avenger.fglobals import *
+from avenger.fio import *
+from avenger.fbiobject import FbiEngMgr
+
+ssdb0 = fbi_global.get_ssdb0()
+# 引擎管理
+fbi_eng_mgr = FbiEngMgr(ssdb0)
+# 用户管理
+fbi_user_mgr = FbiUserMgr(ssdb0)
 
 sys.path.append("/opt/openfbi/pylibs")
 from intell_analy_new import *
@@ -154,6 +164,8 @@ def rules_save():
         file_str = crlf_add_alter.get("file_str", "")
     except Exception as e:
         return {"status": "Error", "msg": f"获取前台数据失败:{e.__str__()}"}
+    if file_str == "":
+        return {"status": "Error", "msg": "模型文件不能为空"}
     # 读取文件信息
     # 拼接文件路径
     # base_dir = "/data/xlink/models_paths/"
@@ -313,7 +325,7 @@ def models_download():
         file_str = request.json.get('filename', "")
         current_data = request.json.get('current_data', [])
         if not file_str:
-            return "未提供文件名"
+            return {"status": "Error", "msg": "未提供文件名"}
 
         base_dir = path_config['paths']['store_base_dir']
 
@@ -355,3 +367,109 @@ def models_download():
 
     except Exception as e:
         return {"status": "Error", "msg": f"错误：{e.__str__()}"}
+
+
+clientID = "qllsj"
+clientSecret = "5ca6d687b49f4a1cae1aeaa4aa286991"
+
+
+@route('/rlogin')
+def authenticate():
+    AUTHORIZATION_URL = 'https://iam.gongshu.gov.cn/idp/authCenter/authenticate'
+    redirect_uri = "https://59.202.69.48:8443/db/auth3"
+    client_id = request.query.client_id or clientID
+    redirect_url = request.query.redirect_uri or redirect_uri
+    response_type = request.query.response_type or 'code'
+    state = request.query.state or '1'
+    if not client_id or client_id != clientID:
+        # return {'errcode': 400, 'msg': 'Invalid or missing client_id'}
+        return redirect1("https://iam.gongshu.gov.cn/login/")
+    if not redirect_uri:
+        # response.status = 400
+        # return {'errcode': 400, 'msg': 'Missing redirect_uri'}
+        return redirect1("https://iam.gongshu.gov.cn/login/")
+    if response_type != 'code':
+        # response.status = 400
+        # return {'errcode': 400, 'msg': 'Invalid response_type'}
+        return redirect1("https://iam.gongshu.gov.cn/login/")
+    github_auth_url = f"{AUTHORIZATION_URL}?response_type={response_type}&state={state}&redirect_uri={redirect_url}&client_id={client_id}"
+    return redirect1(github_auth_url)
+
+
+@route('/auth3')
+def callback():
+    code = request.query.code
+    state = request.query.state
+    # redirect_uri_with_state = redirect_uri + f'?state={state}&code={code}'
+
+    if not code:
+        return 'Error: no code provided'
+    # if state != session.get()
+    # 交换授权码以获取访问令牌
+    token_response = get_access_token(clientID, clientSecret, code, state)
+
+    if token_response.status_code != 200:
+        response.status = token_response.status_code
+        return {'error': 'Failed to obtain token', 'response': token_response.text}
+
+    token_response_data = token_response.json()
+
+    access_token = token_response_data.get('access_token')
+
+    if not access_token:
+        return 'Error: could not retrieve access token'
+    try:
+        # 使用访问令牌获取用户信息
+        user_response = ruser(access_token, clientID)
+    except Exception as e:
+        return {"error": "GET", "msg": e.__str__()}
+    user_data = user_response.json()
+    key = "use:APP-DLP-SE"
+    # 获取到用户id
+    user_name = user_data.get("user_name")
+    session = get_session_id(user_name)
+    list1 = [9008, 9009, 9010, 9011]
+    eng = random.choice(list1)
+    response.set_cookie("fbi_session", session, path="/")
+    response.set_cookie("userName", session, path="/")
+    response.set_cookie("eng", str(eng), path="/")
+    response.set_cookie("work_space", path="/")
+    fea_session_key = "fbi_session:%s" % (session)
+    ssdb0.set(fea_session_key, "%s:%s" % (user_name, "Y"))
+    return redirect1("https://59.202.69.48:8443/wap.h5?key=%s" % key)
+
+
+def get_access_token(client_id, client_secret, code, state):
+    TOKEN_URL = 'https://iam.gongshu.gov.cn/bam-protocol-service/oauth2/getToken'
+    params = {
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "grant_type": 'authorization_code',
+        "state": state
+    }
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    }
+    res = requests.post(TOKEN_URL, params=params, headers=headers)
+    return res
+
+
+def ruser(access_token, clientID):
+    url = 'https://iam.gongshu.gov.cn/bam-protocol-service/oauth2/getUserInfo'
+    headers = {
+
+        "Cookie": f"JSESSIONID={access_token}",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    }
+    params = {
+        "access_token": access_token,
+        "client_id": clientID
+    }
+    res = requests.get(url=url, params=params, headers=headers)
+    return res
+
+
+
