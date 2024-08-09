@@ -473,7 +473,7 @@ def handle_project(con, o_data):
                 imp_uid = data.get("imp_uid")
                 # 需要对 data进行循环 这样才能动态的识别字段信息
                 str_rules = dynamic_data(data, str_rules, imp_pos, imp_name, a_index, model_key, imp_uid)
-    #print(json_class_groups)
+    # print(json_class_groups)
     json_rules = fodr_rules(json_class_groups)
     for model_key, model_value in str_rules.items():
         # 获取当前值信息
@@ -709,7 +709,7 @@ def accord_rules(intell_rules, key, http_data, idx, res_data, condition):
                                                     imp_uid)
 
         res_data.setdefault(idx, data_storage)
-        #print(res_data)
+        # print(res_data)
     return res_data
 
 
@@ -1273,7 +1273,7 @@ def cification(key, data_soure, imps, rules):
         for target, paths in paths_dict.items():
 
             if paths:
-                #rules[key].setdefault()
+                # rules[key].setdefault()
                 rules[key].setdefault(imp_name, {}).setdefault("JSON" + imp_uid + f"_{str(a_index)}", {}).setdefault(
                     imp_pos,
                     []).extend(
@@ -1347,7 +1347,7 @@ def json_identify(data_storage, http_data, rule, ch_name, uid):
     """
     # 获取规则中的key值
     imp_uuid = uid.split("_")[1]
-    imp_uid = uid.split("_")[0].replace("JSON","")
+    imp_uid = uid.split("_")[0].replace("JSON", "")
     for http_pos, r_lst in rule.items():
 
         # 在前端调用的时候保存的是单个上下文规则
@@ -1363,200 +1363,9 @@ def json_identify(data_storage, http_data, rule, ch_name, uid):
                 value_lst = get_value_by_path(data_source, t_rule, value_lst)
                 if value_lst:
                     data_storage.setdefault(imp_uid, {}).setdefault("identifyResults", []).append(value_lst[0])
-                    #data_storage.setdefault(imp_uuid, {}).setdefault(http_pos, {}).setdefault(ch_name, value_lst[0])
+                    # data_storage.setdefault(imp_uuid, {}).setdefault(http_pos, {}).setdefault(ch_name, value_lst[0])
 
     return data_storage
-
-
-def get_value_by_path1(data_source, path, value_lst):
-    """
-    最老版本 嵌套不能用
-    :param data_source:
-    :param path:
-    :param value_lst:
-    :return:
-    """
-    # 先将请求响应体进行转化为dict对象
-    try:
-        current = ujson.loads(data_source)
-
-    except:
-        current = data_source
-
-    # 从给定的数据中进行识别
-    if isinstance(current, dict):
-        temp_current = current
-        found = True
-        path_list = path.split(".")
-        for p in path_list:
-            # 循环当前path 每段路径，先判断JSON数据
-            if p.endswith("-JSON"):
-                key = p.split("-")[0]
-                temp_current = temp_current.get(key)
-                if not current:
-                    found = False
-                    break
-                temp_current = ujson.loads(temp_current)
-            # 判断是否为列表数据
-            elif "-[" in p:
-                key, index = p.split("-[")
-                key = key.strip()
-                index = int(index[:-1])
-                temp_current = temp_current.get(key, [])  # 获取到该key值 下面的列表
-                if not temp_current or index >= len(temp_current):
-                    found = False
-                    break
-                # 已经判断是列表，进行循环查询数据
-
-                # temp_current = temp_current[index]
-                # 新增代码 判断循环列表数据
-                if isinstance(temp_current, list) and path_list.index(p) < len(path_list) - 1 and (
-                        "-[" not in path_list[
-                    path_list.index(p) + 1]):
-                    for item in temp_current:
-                        value = item.get(path_list[path_list.index(p) + 1])
-                        if value:
-                            found = True
-                            value_lst.append(value)
-                temp_current = temp_current[index]
-            else:
-
-                temp_current = temp_current.get(p)
-            if not temp_current:
-                found = False
-                break
-        if found and not isinstance(temp_current, list):
-            if temp_current not in value_lst:
-                value_lst.append(temp_current)
-            return value_lst
-    return []
-
-
-def get_value_by_path2(data_source, path, value_lst):
-    """
-    最新修改完列表值获取的操作
-    :param data_source:
-    :param path:
-    :param value_lst:
-    :return:
-    """
-    try:
-        current = ujson.loads(data_source) if isinstance(data_source, str) else data_source
-    except:
-        current = data_source
-    # 加一个条件当前路径在列表中的索引,用作最后的值判断啊
-    idx_in_lst = 0  # 默认为0
-    if isinstance(current, dict):
-        temp_current = current
-        found = True
-        path_list = path.split(".")
-        for index, p in enumerate(path_list):
-            if p.endswith("-JSON"):
-                key = p.split("-")[0]
-                temp_current = temp_current.get(key)
-                idx_in_lst = index
-                if not temp_current:
-                    found = False
-                    break
-                temp_current = ujson.loads(temp_current)
-            elif "-LIST" in p:
-                key, _ = p.split("-LIST")
-                key = key.strip()
-
-                temp_current = temp_current.get(key, [])  # 循环到这里就是一个列表信息
-                idx_in_lst = index
-                if not temp_current:
-                    found = False
-                    break
-                if p != path_list[-1]:  # 如果路径还未结束，则需要继续处理列表中的元素
-
-                    for item in temp_current:  # 循环该列表信息
-                        value_lst = get_value_by_path(item, ".".join(path_list[index + 1:]), value_lst)
-                    break
-                # 不再需要这个else，因为已经在循环中添加了列表中的每个元素
-            else:
-                temp_current = temp_current.get(p)
-                idx_in_lst = index
-            if not temp_current:
-                found = False
-                break
-
-        # if found and not isinstance(temp_current, list):
-        # 判断 当前值不为列表值，如果是列表值则当前的路径必须是最后段
-        if found and ((not isinstance(temp_current, list)) or (
-                (isinstance(temp_current, list)) and idx_in_lst == len(path_list) - 1)):
-            if temp_current not in value_lst:
-                value_lst.append(temp_current)
-
-    return value_lst
-
-
-def get_value_by_path3(data_source, path, value_lst):
-    """
-    最新修改完列表值上添加索引操作
-    :param data_source:
-    :param path:
-    :param value_lst:
-    :return:
-    """
-    try:
-        current = ujson.loads(data_source) if isinstance(data_source, str) else data_source
-    except:
-        current = data_source
-    # 加一个条件当前路径在列表中的索引,用作最后的值判断啊
-    idx_in_lst = 0  # 默认为0
-    if isinstance(current, dict):
-        temp_current = current
-        found = True
-        path_list = path.split(".")
-        for index, p in enumerate(path_list):
-            if p.endswith("-JSON"):
-                key = p.split("-")[0]
-                temp_current = temp_current.get(key)
-                idx_in_lst = index
-                if not temp_current:
-                    found = False
-                    break
-                temp_current = ujson.loads(temp_current)
-            elif "-LIST" in p:
-                key, _ = p.split("-LIST")
-                key = key.strip()
-
-                temp_current = temp_current.get(key, [])  # 循环到这里就是一个列表信息
-                idx_in_lst = index
-                if not temp_current:
-                    found = False
-                    break
-                if p != path_list[-1]:  # 如果路径还未结束，则需要继续处理列表中的元素
-
-                    for item in temp_current:  # 循环该列表信息
-                        value_lst = get_value_by_path(item, ".".join(path_list[index + 1:]), value_lst)
-                    break
-                # 不再需要这个else，因为已经在循环中添加了列表中的每个元素
-            elif "-[" in p and p.endswith("]"):
-                key, index = p.split("-[")
-                key = key.strip()
-                index = int(index[:-1])
-                temp_current = temp_current.get(key, [])
-                if not temp_current or index >= len(temp_current):
-                    found = False
-                    break
-                temp_current = temp_current[index]
-            else:
-                temp_current = temp_current.get(p)
-                idx_in_lst = index
-            if not temp_current:
-                found = False
-                break
-
-        # if found and not isinstance(temp_current, list):
-        # 判断 当前值不为列表值，如果是列表值则当前的路径必须是最后段
-        if found and ((not isinstance(temp_current, list)) or (
-                (isinstance(temp_current, list)) and idx_in_lst == len(path_list) - 1)):
-            if temp_current not in value_lst:
-                value_lst.append(temp_current)
-
-    return value_lst
 
 
 def get_value_by_path(data_source, path, value_lst):
@@ -1584,7 +1393,7 @@ def get_value_by_path(data_source, path, value_lst):
                 key = p.split("-")[0]
                 temp_current = temp_current.get(key)
                 idx_in_lst = index
-                if not temp_current:
+                if not temp_current and temp_current is not False:
                     found = False
                     break
                 try:
@@ -1599,7 +1408,7 @@ def get_value_by_path(data_source, path, value_lst):
                 key = key.strip()
                 temp_current = temp_current.get(key, [])
                 idx_in_lst = index
-                if not temp_current:
+                if not temp_current and temp_current is not False:
                     found = False
                     break
                 if p != path_list[-1]:  # 如果路径还未结束，则需要继续处理列表中的元素
@@ -1616,7 +1425,7 @@ def get_value_by_path(data_source, path, value_lst):
                     found = False
                     break
                 temp_current = temp_current.get(key, [])
-                if not temp_current or index >= len(temp_current):
+                if (not temp_current and temp_current is not False) or index >= len(temp_current):
                     found = False
                     break
                 temp_current = temp_current[index]
@@ -1624,7 +1433,7 @@ def get_value_by_path(data_source, path, value_lst):
             else:
                 temp_current = temp_current.get(p)
                 idx_in_lst = index
-            if not temp_current:
+            if not temp_current and temp_current is not False:
                 found = False
                 break
 
@@ -1682,13 +1491,14 @@ def model_data_extract(ch_name, o, data_storage, imp_data):
 
 
 # add rzc on 2024/7/17 针对子模型标签信息进行判断
-def label_judge(model_data,label_key,label_name):
+def label_judge(model_data, label_key, label_name):
     model_file_data = {}
-    for model_key,rule_data in model_data.items():
-        label_info = rule_data.get("label_info",{})
+    for model_key, rule_data in model_data.items():
+        label_info = rule_data.get("label_info", {})
         if label_info.get(label_key) == label_name:
             model_file_data[model_key] = rule_data
     return model_file_data
+
 
 def merge_dicts(d1, d2):
     for key in d2:
@@ -1716,11 +1526,11 @@ def intell_sen1(model_file_data, monitor):
     level_lst = []
     cls_lst = []
     count = {}
-    max_level=0
+    max_level = 0
     # sen_level = {"1":"L1","2":"L2","3":"L3","4":"L4"}
     sen_level = {"L1": 1, "L2": 2, "L3": 3, "L4": 4}
-    analy_data = read_model_identify(model_file_data,monitor)
-    if isinstance(analy_data,dict):
+    analy_data = read_model_identify(model_file_data, monitor)
+    if isinstance(analy_data, dict):
         imp_data = analy_data.get("data")
         if imp_data:
             for pos, rule_data in imp_data.items():
@@ -1731,29 +1541,66 @@ def intell_sen1(model_file_data, monitor):
                     level_lst.append(int(sen_level.get(level_ch)))
                     cls_lst.append(cls)
                     for k, v in sen_data.items():
-                        sens.setdefault(k,[]).extend(v)
+                        sens.setdefault(k, []).extend(v)
                         total_info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,
-                                                                                                                  list(set(v)))
-                        total_count.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k, len(list(
-                            set(v))))
+                                                                                                                  list(
+                                                                                                                      set(v)))
+                        total_count.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,
+                                                                                                                   len(list(
+                                                                                                                       set(v))))
                         info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k, {
                             "数量": len(list(set(v))), "内容": list(set(v))})
-                count.setdefault(ch_pos,{k: len(list(set(v))) for k, v in sens.items()})
+                count.setdefault(ch_pos, {k: len(list(set(v))) for k, v in sens.items()})
 
             if level_lst:
                 max_level = max(level_lst)
             else:
                 max_level = 0
             cls_lst = list(set(cls_lst))
-    return total_info, total_count, max_level, info, cls_lst,count
+    return total_info, total_count, max_level, info, cls_lst, count
+
+
 if __name__ == '__main__':
     model_data = {
 
-        "地址解析": {'rules': {'地址信息-L1>>详细地址': {'JSON1118690.892120725_0': {'response_body': ['result.addressComponent.address']}}, '地址信息-L1>>城市': {'JSON1118690.89217796_1': {'response_body': ['result.addressComponent.city']}}, '地址信息-L1>>国家': {'JSON1118690.892217229_2': {'response_body': ['result.addressComponent.nation']}}, '地址信息-L1>>城区': {'JSON1118690.892250598_3': {'response_body': ['result.addressComponent.county']}}, '省份': {'JSON1118690.892289247_4': {'response_body': ['result.addressComponent.province']}}}, 'condition': {'app': {'judge': '=', 'msg': '100.12.66.55'}, 'url': {'judge': '=', 'msg': 'http://100.12.66.55/api/geocoder'}}, 'label_info': {'日志类型': '敏感监测'}},
-        "测试1": {'rules': {'登录令牌>>令牌': {'1026762.157071206_0': {'request_headers': {'Authorization': {'start': {}, 'end': {}}}}}}, 'condition': {'app': {'judge': 'in', 'msg': ['192.168.229.156', '192.168.23.202']}}, 'label_info': {'name': '测试', '日志类型': '业务访问'}},
-        "账号登录": {'rules': {'返回结果>>账户': {'1027799.015130446_0': {'request_body': {'start': {'str': '&username='}, 'end': {'str': '&'}}}}, '操作>>密码': {'1027799.082829513_1': {'request_body': {'start': {'str': '&password='}, 'end': {'str': '&'}}}}, '返回结果>>会话ID': {'1027799.10287347_2': {'request_headers': {'Cookie': {'start': {'str': 'JSESSIONID='}, 'end': {}}}}}}, 'condition': {'app': {'judge': '=', 'msg': '41.204.84.91:9090'}, 'urld': {'judge': '=', 'msg': 'http://41.204.84.91:9090/login.jsp'}}, 'label_info': {'name': '', '日志类型': '业务访问'}}
+        "地址解析": {'rules': {'地址信息-L1>>详细地址': {
+            'JSON1118690.892120725_0': {'response_body': ['result.addressComponent.address']}}, '地址信息-L1>>城市': {
+            'JSON1118690.89217796_1': {'response_body': ['result.addressComponent.city']}}, '地址信息-L1>>国家': {
+            'JSON1118690.892217229_2': {'response_body': ['result.addressComponent.nation']}}, '地址信息-L1>>城区': {
+            'JSON1118690.892250598_3': {'response_body': ['result.addressComponent.county']}}, '省份': {
+            'JSON1118690.892289247_4': {'response_body': ['result.addressComponent.province']}}},
+                     'condition': {'app': {'judge': '=', 'msg': '100.12.66.55'},
+                                   'url': {'judge': '=', 'msg': 'http://100.12.66.55/api/geocoder'}},
+                     'label_info': {'日志类型': '敏感监测'}},
+        "测试1": {'rules': {'登录令牌>>令牌': {
+            '1026762.157071206_0': {'request_headers': {'Authorization': {'start': {}, 'end': {}}}}}},
+                  'condition': {'app': {'judge': 'in', 'msg': ['192.168.229.156', '192.168.23.202']}},
+                  'label_info': {'name': '测试', '日志类型': '业务访问'}},
+        "账号登录": {'rules': {'返回结果>>账户': {
+            '1027799.015130446_0': {'request_body': {'start': {'str': '&username='}, 'end': {'str': '&'}}}},
+                               '操作>>密码': {'1027799.082829513_1': {
+                                   'request_body': {'start': {'str': '&password='}, 'end': {'str': '&'}}}},
+                               '返回结果>>会话ID': {'1027799.10287347_2': {
+                                   'request_headers': {'Cookie': {'start': {'str': 'JSESSIONID='}, 'end': {}}}}}},
+                     'condition': {'app': {'judge': '=', 'msg': '41.204.84.91:9090'},
+                                   'urld': {'judge': '=', 'msg': 'http://41.204.84.91:9090/login.jsp'}},
+                     'label_info': {'name': '', '日志类型': '业务访问'}}
     }
     label_key = "日志类型"
     label_name = "敏感监测"
-    model_file_data = label_judge(model_data, label_key, label_name)
-    print(model_file_data)
+    # model_file_data = label_judge(model_data, label_key, label_name)
+    # print(model_file_data)
+
+    model_data1 = {"测试": {
+        "rules": {"返回结果>>执行状态": {'JSON4410448.3571179_0': {"response_body": ["success"]}}},
+        "condition": {"url": {"judge": "=", "msg": "/dataasset/common/datasource/mgt/insert"}},
+        "label_info": {"name": "", "操作事件": "新建"}
+    }}
+    o = {
+        "url": "/dataasset/common/datasource/mgt/insert",
+        "response_body": {
+            "success": False
+        }
+    }
+    ss = read_model_identify(model_data1, o)
+    print(ss)
