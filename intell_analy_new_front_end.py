@@ -1501,6 +1501,8 @@ def label_judge(model_data, label_key, label_name):
 
 
 def merge_dicts(d1, d2):
+    if not d2:
+        return d1
     for key in d2:
         if key in d1:
             if isinstance(d1[key], dict) and isinstance(d2[key], dict):
@@ -1540,7 +1542,7 @@ def intell_sen1(model_file_data, monitor,sen_level):
                     #cls, level_ch = cls_level.split("-")
                     cls, level = cls_level.split("-")
                     level_lst.append(int(level))
-                    level_ch = sen_level.get(level)
+                    level_ch = sen_level.get(int(level))
                     cls_lst.append(cls)
                     for k, v in sen_data.items():
                         sens.setdefault(k, []).extend(v)
