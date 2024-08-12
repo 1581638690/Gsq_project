@@ -1518,7 +1518,7 @@ def merge_dicts(d1, d2):
     return d1
 
 
-def intell_sen1(model_file_data, monitor):
+def intell_sen1(model_file_data, monitor,sen_level):
     key_ch = {"response_body": "响应体", "request_body": "请求体", "parameter": "参数"}
     total_info = {}
     total_count = {}
@@ -1528,7 +1528,7 @@ def intell_sen1(model_file_data, monitor):
     count = {}
     max_level = 0
     # sen_level = {"1":"L1","2":"L2","3":"L3","4":"L4"}
-    sen_level = {"L1": 1, "L2": 2, "L3": 3, "L4": 4}
+    # sen_level = {"L1": 1, "L2": 2, "L3": 3, "L4": 4}
     analy_data = read_model_identify(model_file_data, monitor)
     if isinstance(analy_data, dict):
         imp_data = analy_data.get("data")
@@ -1537,17 +1537,15 @@ def intell_sen1(model_file_data, monitor):
                 ch_pos = key_ch.get(pos, pos)
                 sens = {}
                 for cls_level, sen_data in rule_data.items():
-                    cls, level_ch = cls_level.split("-")
-                    level_lst.append(int(sen_level.get(level_ch)))
+                    #cls, level_ch = cls_level.split("-")
+                    cls, level = cls_level.split("-")
+                    level_lst.append(int(level))
+                    level_ch = sen_level.get(level)
                     cls_lst.append(cls)
                     for k, v in sen_data.items():
                         sens.setdefault(k, []).extend(v)
-                        total_info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,
-                                                                                                                  list(
-                                                                                                                      set(v)))
-                        total_count.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,
-                                                                                                                   len(list(
-                                                                                                                       set(v))))
+                        total_info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,list(set(v)))
+                        total_count.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,len(list(set(v))))
                         info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k, {
                             "数量": len(list(set(v))), "内容": list(set(v))})
                 count.setdefault(ch_pos, {k: len(list(set(v))) for k, v in sens.items()})
@@ -1560,6 +1558,16 @@ def intell_sen1(model_file_data, monitor):
     return total_info, total_count, max_level, info, cls_lst, count
 
 
+# add rzc on 2024/8/10 针对子模型标签信息进行判断日志类型和输出日志 模块
+def label_log_judge(model_data, label_key, label_name):
+    model_file_data = {}
+    for model_key, rule_data in model_data.items():
+        label_info = rule_data.get("label_info", {})
+        if label_info.get(label_key) == label_name:
+            model_file_data[model_key] = rule_data
+    return model_file_data
+
+
 if __name__ == '__main__':
     model_data = {
 
@@ -1569,22 +1577,22 @@ if __name__ == '__main__':
             'JSON1118690.892217229_2': {'response_body': ['result.addressComponent.nation']}}, '地址信息-L1>>城区': {
             'JSON1118690.892250598_3': {'response_body': ['result.addressComponent.county']}}, '省份': {
             'JSON1118690.892289247_4': {'response_body': ['result.addressComponent.province']}}},
-                     'condition': {'app': {'judge': '=', 'msg': '100.12.66.55'},
-                                   'url': {'judge': '=', 'msg': 'http://100.12.66.55/api/geocoder'}},
-                     'label_info': {'日志类型': '敏感监测'}},
+            'condition': {'app': {'judge': '=', 'msg': '100.12.66.55'},
+                          'url': {'judge': '=', 'msg': 'http://100.12.66.55/api/geocoder'}},
+            'label_info': {'日志类型': '敏感监测'}},
         "测试1": {'rules': {'登录令牌>>令牌': {
             '1026762.157071206_0': {'request_headers': {'Authorization': {'start': {}, 'end': {}}}}}},
-                  'condition': {'app': {'judge': 'in', 'msg': ['192.168.229.156', '192.168.23.202']}},
-                  'label_info': {'name': '测试', '日志类型': '业务访问'}},
+            'condition': {'app': {'judge': 'in', 'msg': ['192.168.229.156', '192.168.23.202']}},
+            'label_info': {'name': '测试', '日志类型': '业务访问'}},
         "账号登录": {'rules': {'返回结果>>账户': {
             '1027799.015130446_0': {'request_body': {'start': {'str': '&username='}, 'end': {'str': '&'}}}},
-                               '操作>>密码': {'1027799.082829513_1': {
-                                   'request_body': {'start': {'str': '&password='}, 'end': {'str': '&'}}}},
-                               '返回结果>>会话ID': {'1027799.10287347_2': {
-                                   'request_headers': {'Cookie': {'start': {'str': 'JSESSIONID='}, 'end': {}}}}}},
-                     'condition': {'app': {'judge': '=', 'msg': '41.204.84.91:9090'},
-                                   'urld': {'judge': '=', 'msg': 'http://41.204.84.91:9090/login.jsp'}},
-                     'label_info': {'name': '', '日志类型': '业务访问'}}
+            '操作>>密码': {'1027799.082829513_1': {
+                'request_body': {'start': {'str': '&password='}, 'end': {'str': '&'}}}},
+            '返回结果>>会话ID': {'1027799.10287347_2': {
+                'request_headers': {'Cookie': {'start': {'str': 'JSESSIONID='}, 'end': {}}}}}},
+            'condition': {'app': {'judge': '=', 'msg': '41.204.84.91:9090'},
+                          'urld': {'judge': '=', 'msg': 'http://41.204.84.91:9090/login.jsp'}},
+            'label_info': {'name': '', '日志类型': '业务访问'}}
     }
     label_key = "日志类型"
     label_name = "敏感监测"
