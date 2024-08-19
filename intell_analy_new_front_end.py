@@ -1520,7 +1520,7 @@ def merge_dicts(d1, d2):
     return d1
 
 
-def intell_sen1(model_file_data, monitor,sen_level):
+def intell_sen1(model_file_data, monitor, sen_level):
     key_ch = {"response_body": "响应体", "request_body": "请求体", "parameter": "参数"}
     total_info = {}
     total_count = {}
@@ -1539,15 +1539,19 @@ def intell_sen1(model_file_data, monitor,sen_level):
                 ch_pos = key_ch.get(pos, pos)
                 sens = {}
                 for cls_level, sen_data in rule_data.items():
-                    #cls, level_ch = cls_level.split("-")
+                    # cls, level_ch = cls_level.split("-")
                     cls, level = cls_level.split("-")
                     level_lst.append(int(level))
                     level_ch = sen_level.get(int(level))
                     cls_lst.append(cls)
                     for k, v in sen_data.items():
                         sens.setdefault(k, []).extend(v)
-                        total_info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,list(set(v)))
-                        total_count.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,len(list(set(v))))
+                        total_info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,
+                                                                                                                  list(
+                                                                                                                      set(v)))
+                        total_count.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k,
+                                                                                                                   len(list(
+                                                                                                                       set(v))))
                         info.setdefault(ch_pos, {}).setdefault(cls, {}).setdefault(level_ch, {}).setdefault(k, {
                             "数量": len(list(set(v))), "内容": list(set(v))})
                 count.setdefault(ch_pos, {k: len(list(set(v))) for k, v in sens.items()})
@@ -1568,6 +1572,46 @@ def label_log_judge(model_data, label_key, label_name):
         if label_info.get(label_key) == label_name:
             model_file_data[model_key] = rule_data
     return model_file_data
+
+
+# 针对相同接口，根据接口参数的不同来变换接口事件的名称
+def QueryApiName(url_name, label_info, parameter, parameter_json=None):
+    """
+    :return: 例如 /dataasset/api/core/dataSourceMgt/queryDataSourceInfo
+    参数：keyword=&page=1&sourceType=JDBC%&size=10&dbType=MYSQL&dataType=CDB  数据归集-数据源管理-中心库
+         keyword=&page=1&sourceType=JDBC&size=10&dbType=   数据归集-数据源管理
+         page=9&size=10&keyword=启信宝&dataWarehouse=ODS  数据目录-数据目录-数仓分层-访问_搜索
+        label_info = {"参数分类":"dataType>>中心库/数据源"}
+
+    """
+    # 先判断参数分类是否存在label_info
+    if "参数分类" not in label_info:
+        return url_name
+    par_name = label_info.get("参数分类", "")
+    keyword, cls = par_name.split(">>")
+    key_true, key_false = cls.split("/")
+    target = parameter_json or parameter
+    result = key_true if target and keyword in target else key_false
+
+    if url_name:
+        url_name += f"-{result}"
+    else:
+        url_name = result
+
+    return url_name
+
+
+def QueryMultApiName(url_name, label_info, parameter, parameter_json=None):
+    for key in label_info:
+        if "参数分类" not in key:
+            continue
+        par_name = label_info.get(key, "")
+        keyword, cls = par_name.split(">>")
+        #target = parameter_json or parameter
+        target = parameter_json or {}
+        if (keyword in target or keyword in target.values()) or keyword in parameter:
+            url_name = cls
+    return url_name
 
 
 if __name__ == '__main__':
@@ -1612,5 +1656,20 @@ if __name__ == '__main__':
             "success": False
         }
     }
-    ss = read_model_identify(model_data1, o)
-    print(ss)
+    #ss = read_model_identify(model_data1, o)
+    #print(ss)
+
+
+    parameter = "taskName=&page=1&size=10&taskType=REALTIME&dataType=G"
+    parameter_json = {
+        "taskName":"",
+        "page":"1",
+        "size":"10",
+        "taskType":"REALTIME",
+        "dataType":"G"
+    }
+    url_name = "数据服务-推送任务"
+    label_info = {"参数分类":"OFFLINE>>数据归集-离线任务","参数分类1":"REALTIME>>数据归集-实时任务"}
+    url_name = QueryMultApiName(url_name, label_info, parameter, parameter_json)
+    print(url_name)
+
