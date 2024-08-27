@@ -19,7 +19,7 @@ def session_retrieval(user_dic, account_model, acc_o):
     account = ""
     result = read_model_identify(account_model, acc_o)
     label_info = result.get("label_info", {})
-    if label_info.get("接口详情", "") == "登录":
+    if label_info.get("接口详情") == "登录":
         data = result.get("data", {})
         user_infos = {}
         token_container = []
@@ -432,11 +432,7 @@ if __name__ == '__main__':
     rules = {'': {'>>账户名': {'JSONid-lzw1zt5y-at05zi97n_0': {'request_body': ['account']}},
                   '>>会话ID': {'JSONid-lzw1zt5y-at05zi78n_1': {'response_body': ['data']}}}}
     models_data = {
-        "登录接口": {"rules": {'>>账户名': {'JSONid-lzw1zt5y-at05zi97n_0': {'request_body': ['account']}},
-                               '>>会话ID': {'JSONid-lzw1zt5y-at05zi78n_1': {'response_body': ['data']}}},
-                     "condition": {"urld": {"msg": "http://10.96.8.167/api/login", "judge": "="}},
-                     "label_info": {"接口详情": "登录"}
-                     },
+
         "账户获取": {"rules": {'地址信息-L1>>会话ID': {'id-lzwimf0o-o2ko3vg4d_0': {
             'request_headers': {'Authorization': {'start': {'str': 'Bearer '}, 'end': {}}}}}},
             "condition": {"app": {"msg": "10.96.8.167", "judge": "="},"urld": {
@@ -445,6 +441,16 @@ if __name__ == '__main__':
                 }},
             "label_info": {}
         }
+    }
+    model_file_data= {
+
+        "登录2": {'rules': {'会话ID': {'3557385.879299027_0': {'request_headers': {'Authorization': {'start': {'str': 'Bearer '}, 'end': {}}}}}}, 'condition': {'app': {'judge': '=', 'msg': '10.96.8.167'}}, 'label_info': {'name': '', '日志类型': '账户识别'}},
+        "登录": {'rules': {'账户名': {'JSON3557086.724566693_0': {'request_body': ['account']}}, '会话ID': {'JSON3557086.724612533_1': {'response_body': ['data']}}}, 'condition': {'url': {'judge': '=', 'msg': 'http://10.96.8.167/api/login'}}, 'label_info': {'name': '', '日志类型': '账户识别', '接口详情': '登录'}}
+    },
+    model_file_Data1 = {
+        "登录识别": "{'rules': {'会话ID': {'id-m0afnbze-railvy6x0_0': {'request_headers': {'Authorization': {'start': {'str': 'Bearer '}, 'end': {}}}}}}, 'condition': {'app': {'judge': '=', 'msg': '10.96.8.167'}, 'url': {'judge': '!=', 'msg': 'http://10.96.8.167/api/login'}}, 'label_info': {'日志类型': '账户识别', '接口详情': '登录'}}",
+        "登录接口": "{'rules': {'地址信息-L1>>账户名': {'JSONid-m0afguwc-perra3521_0': {'request_body': ['account']}}, '地址信息-L1>>会话ID': {'JSONid-m0afh2aj-uyhr5oz8w_1': {'response_body': ['data']}}}, 'condition': {'url': {'judge': '=', 'msg': 'http://10.96.8.167/api/login'}}, 'label_info': {'日志类型': '账户识别', '接口详情': '登录'}}"
+
     }
     ooo = [
         {
@@ -599,6 +605,3 @@ if __name__ == '__main__':
         user_dic, account = session_retrieval(user_dic, models_data, o)
         print(user_dic)
         print(account)
-
-    'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjE3NDI4NzgwMTg4NDg0MDM0NTcsImFjY291bnQiOiJ6aGVuZ3pob3VXTCIsInV1aWQiOiJjYzEyNmRhZi0wMDg5LTQ5NTQtOWZkYi1jYmU5MjRkOTQxOGEiLCJzdWIiOiIxNzQyODc4MDE4ODQ4NDAzNDU3IiwiaWF0IjoxNzIzNDIwNzc1LCJleHAiOjE3MjM1MDcxNzV9.-mxtOcHwlrO2WE5qRQTuE9rNSVoQ5m3GKg5OMOw-1Cy6gAxjp0PX578LKE0cTTTnO4BIeBAsWE02SpuRY8XvCA'
-    "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjE3NDI4NzgwMTg4NDg0MDM0NTcsImFjY291bnQiOiJ6aGVuZ3pob3VXTCIsInV1aWQiOiIyZTQxYWJhMi02MWFiLTQ0ZmUtOWEwZi1jMjM5OTk4M2RmNDAiLCJzdWIiOiIxNzQyODc4MDE4ODQ4NDAzNDU3IiwiaWF0IjoxNzIzNDIwNzc5LCJleHAiOjE3MjM1MDcxNzl9.ryTeVJrr-sySC8K1wyG4qo8t2UujSjSxigzoJP6Xs8iD2MeuMJ5oojuWOS6WYwyCRf-EI5Zg6S3E35RFyYjCsweyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjE3NDI4NzgwMTg4NDg0MDM0NTcsImFjY291bnQiOiJ6aGVuZ3pob3VXTCIsInV1aWQiOiIyZTQxYWJhMi02MWFiLTQ0ZmUtOWEwZi1jMjM5OTk4M2RmNDAiLCJzdWIiOiIxNzQyODc4MDE4ODQ4NDAzNDU3IiwiaWF0IjoxNzIzNDIwNzc5LCJleHAiOjE3MjM1MDcxNzl9.ryTeVJrr-sySC8K1wyG4qo8t2UujSjSxigzoJP6Xs8iD2MeuMJ5oojuWOS6WYwyCRf-EI5Zg6S3E35RFyYjCsw"

@@ -376,7 +376,7 @@ clientSecret = "5ca6d687b49f4a1cae1aeaa4aa286991"
 @route('/rlogin')
 def authenticate():
     AUTHORIZATION_URL = 'https://iam.gongshu.gov.cn/idp/authCenter/authenticate'
-    redirect_uri = "https://59.202.69.48:8443/db/auth3"
+    redirect_uri = "https://59.202.68.91:8443/db/auth3"
     client_id = request.query.client_id or clientID
     redirect_url = request.query.redirect_uri or redirect_uri
     response_type = request.query.response_type or 'code'
@@ -436,7 +436,7 @@ def callback():
     response.set_cookie("work_space", path="/")
     fea_session_key = "fbi_session:%s" % (session)
     ssdb0.set(fea_session_key, "%s:%s" % (user_name, "Y"))
-    return redirect1("https://59.202.69.48:8443/wap.h5?key=%s" % key)
+    return redirect1("https://59.202.68.91:8443/wap.h5?key=%s" % key)
 
 
 def get_access_token(client_id, client_secret, code, state):

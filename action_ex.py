@@ -222,6 +222,7 @@ def retrieve_forward(action_dict, o, session_id, interface_url):
                             event_response_body = dd.get("response_body", "")
                             # 将当前response_body 替换到当前响应体中
                             o["response_body"] = event_response_body
+                            o["res"] = dd.get("res")
                             founds_url = True
                             break
                         elif jiben_con:
@@ -418,7 +419,7 @@ if __name__ == '__main__':
         {"url": "/hsdsh/peopleEnterprise/selectListForPg", "url_type": "详情",
          "parameter": "", "founds": False,
          "res": {"公司名称": ["杭州三富金属材料有限公司"], "社会统一标识": ["913301055660514050"]},
-         "request_body": {"tableName": "gj_qxb_qyjbxxb", "condition": {"eid": ""}, "page": 1, "limit": 10},
+         "request_body": {"tableNames": "gj_qxb_qyjbxxb", "condition": {"eid": ""}, "page": 1, "limit": 10},
          "response_body": {"code": "0000", "msg": "请求成功", "data": [
              {"actual_capi": "210", "oper_name": "王鑫杰", "format_name": "杭州三富金属材料有限公司",
               "credit_no": "913301055660514050"}]}
