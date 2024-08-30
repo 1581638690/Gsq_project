@@ -4,6 +4,7 @@ import shutil
 import sys
 import configparser
 import requests
+import ujson
 
 # 读取配置文件
 path_config = configparser.ConfigParser()
@@ -13,7 +14,7 @@ path_config.read('/opt/openfbi/pylibs/config.ini')
 xlink_base_path = path_config['paths']['xlink_base_path']
 
 sys.path.append("lib")
-from bottle import request, route, response,  redirect as redirect1
+from bottle import request, route, response, redirect as redirect1
 import json
 import zipfile
 from avenger.fsys import *
@@ -371,12 +372,12 @@ def models_download():
 
 clientID = "qllsj"
 clientSecret = "5ca6d687b49f4a1cae1aeaa4aa286991"
-
+AUTHORIZATION_URL = 'https://iam.gongshu.gov.cn/idp/authCenter/authenticate'
+redirect_uri = "https://59.202.68.91:8443/db/auth3"
+github_auth_url = f"{AUTHORIZATION_URL}?response_type=code&state=1&redirect_uri={redirect_uri}&client_id={clientID}"
 
 @route('/rlogin')
 def authenticate():
-    AUTHORIZATION_URL = 'https://iam.gongshu.gov.cn/idp/authCenter/authenticate'
-    redirect_uri = "https://59.202.68.91:8443/db/auth3"
     client_id = request.query.client_id or clientID
     redirect_url = request.query.redirect_uri or redirect_uri
     response_type = request.query.response_type or 'code'
@@ -392,7 +393,7 @@ def authenticate():
         # response.status = 400
         # return {'errcode': 400, 'msg': 'Invalid response_type'}
         return redirect1("https://iam.gongshu.gov.cn/login/")
-    github_auth_url = f"{AUTHORIZATION_URL}?response_type={response_type}&state={state}&redirect_uri={redirect_url}&client_id={client_id}"
+    # github_auth_url = f"{AUTHORIZATION_URL}?response_type={response_type}&state={state}&redirect_uri={redirect_url}&client_id={client_id}"
     return redirect1(github_auth_url)
 
 
@@ -403,7 +404,7 @@ def callback():
     # redirect_uri_with_state = redirect_uri + f'?state={state}&code={code}'
 
     if not code:
-        return 'Error: no code provided'
+        return redirect1(github_auth_url)
     # if state != session.get()
     # 交换授权码以获取访问令牌
     token_response = get_access_token(clientID, clientSecret, code, state)
@@ -417,7 +418,7 @@ def callback():
     access_token = token_response_data.get('access_token')
 
     if not access_token:
-        return 'Error: could not retrieve access token'
+        return ujson.dumps({"success":False,"msg":"Token认证过期！"},ensure_ascii=False)
     try:
         # 使用访问令牌获取用户信息
         user_response = ruser(access_token, clientID)
@@ -427,16 +428,28 @@ def callback():
     key = "use:APP-DLP-SE"
     # 获取到用户id
     user_name = user_data.get("user_name")
-    session = get_session_id(user_name)
-    list1 = [9008, 9009, 9010, 9011]
-    eng = random.choice(list1)
-    response.set_cookie("fbi_session", session, path="/")
-    response.set_cookie("userName", session, path="/")
-    response.set_cookie("eng", str(eng), path="/")
-    response.set_cookie("work_space", path="/")
-    fea_session_key = "fbi_session:%s" % (session)
-    ssdb0.set(fea_session_key, "%s:%s" % (user_name, "Y"))
-    return redirect1("https://59.202.68.91:8443/wap.h5?key=%s" % key)
+    user_dic = {
+        # "79777604":"任智超",
+        "79776063": "邱礼开",
+        "10527070": "柳锋"
+    }
+    if user_name and user_name in user_dic:
+        user_name = user_dic.get(user_name) or user_name
+        # is_superuser = user_name in SUPERUSER_WHITELIST
+        session = get_session_id(user_name)
+
+        list1 = [9008, 9009, 9010, 9011]
+        eng = random.choice(list1)
+        response.set_cookie("fbi_session", session, path="/")
+        response.set_cookie("userName", session, path="/")
+        response.set_cookie("eng", str(eng), path="/")
+        response.set_cookie("work_space", path="/")
+        fea_session_key = "fbi_session:%s" % (session)
+        ssdb0.set(fea_session_key, "%s:%s" % (user_name, "Y"))
+        return redirect1("https://59.202.68.91:8443/wap.h5?key=%s" % key)
+    else:
+
+        return ujson.dumps({"success":False,"msg":"您没有用户权限！"},ensure_ascii=False)
 
 
 def get_access_token(client_id, client_secret, code, state):
@@ -470,6 +483,3 @@ def ruser(access_token, clientID):
     }
     res = requests.get(url=url, params=params, headers=headers)
     return res
-
-
-
